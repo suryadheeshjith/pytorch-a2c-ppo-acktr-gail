@@ -1,12 +1,14 @@
 import os
 
+import cv2
 import gym
 import numpy as np
 import torch
 from gym.spaces.box import Box
 
 from baselines import bench
-from baselines.common.atari_wrappers import make_atari, wrap_deepmind
+from baselines.common.atari_wrappers import make_atari, EpisodicLifeEnv, FireResetEnv, WarpFrame, \
+    ScaledFloatFrame, ClipRewardEnv, FrameStack
 from baselines.common.vec_env import VecEnvWrapper
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.shmem_vec_env import ShmemVecEnv
@@ -100,10 +102,8 @@ def make_vec_envs(env_name,
 
     envs = VecPyTorch(envs, device)
 
-    if num_frame_stack is not None:
+    if num_frame_stack > 1:
         envs = VecPyTorchFrameStack(envs, num_frame_stack, device)
-    elif len(envs.observation_space.shape) == 3:
-        envs = VecPyTorchFrameStack(envs, 4, device)
 
     return envs
 
@@ -250,3 +250,35 @@ class VecPyTorchFrameStack(VecEnvWrapper):
 
     def close(self):
         self.venv.close()
+
+
+class GrayscaleWrapper(gym.ObservationWrapper):
+    def __init__(self, env):
+        """Warp frames to 84x84 as done in the Nature paper and later work."""
+        gym.ObservationWrapper.__init__(self, env)
+        self.observation_space = gym.spaces.Box(low=0, high=255,
+                                                shape=(self.observation_space.shape[0], self.observation_space.shape[1], 1), dtype=np.uint8)
+
+    def observation(self, frame):
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        frame = np.expand_dims(frame, -1)
+        return frame
+
+
+def wrap_deepmind(env, episode_life=True, clip_rewards=True, frame_stack=False, scale=False):
+    """Configure environment for DeepMind-style Atari.
+    """
+    if ("videopinball" in str(env.spec.id).lower()) or ('tennis' in str(env.spec.id).lower()):
+        env = WarpFrame(env, width=160, height=210, grayscale=False)
+    if episode_life:
+        env = EpisodicLifeEnv(env)
+    if 'FIRE' in env.unwrapped.get_action_meanings():
+        env = FireResetEnv(env)
+    env = GrayscaleWrapper(env)
+    if scale:
+        env = ScaledFloatFrame(env)
+    if clip_rewards:
+        env = ClipRewardEnv(env)
+    if frame_stack:
+        env = FrameStack(env, 4)
+    return env
