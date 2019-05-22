@@ -24,7 +24,7 @@ import wandb
 
 def main():
     args = get_args()
-    wandb.init(project="pretrained-rl-agents", entity="curl-atari")
+    wandb.init(project="pretrained-rl-agents-2", entity="curl-atari")
     config = {}
     config.update(vars(args))
     config['num_frame_stack'] = 1
