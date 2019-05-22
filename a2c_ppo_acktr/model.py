@@ -188,11 +188,12 @@ class CNNBase(NNBase):
 
     def forward(self, inputs, rnn_hxs, masks):
         x = self.main(inputs / 255.0)
+        features = self.main[:-1](inputs / 255.0)
 
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
 
-        return self.critic_linear(x), x, rnn_hxs
+        return self.critic_linear(x), features, rnn_hxs
 
 
 class MLPBase(NNBase):
