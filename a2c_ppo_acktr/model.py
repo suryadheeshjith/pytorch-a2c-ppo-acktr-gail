@@ -53,7 +53,7 @@ class Policy(nn.Module):
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
         value, actor_features, rnn_hxs = self.base(inputs, rnn_hxs, masks)
-        dist = self.dist(actor_features)
+        dist = self.dist(F.relu(actor_features))
 
         if deterministic:
             action = dist.mode()
